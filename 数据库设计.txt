@@ -1,0 +1,8 @@
+1、如何自动创建数据库
+
+2、如何自动创建数据库表
+
+3、如何让用户在使用的时候非常方便
+
+4、将User对象里面的类名 属性转换成创建数据库表的SQL语句
+如：crate table user(id Integer,name text, password text);

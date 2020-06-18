@@ -1,4 +1,4 @@
-package com.yuong.database.db;
+package com.yuong.database.db.base;
 
 import java.util.List;
 
@@ -15,5 +15,13 @@ public interface IBaseDao<T> {
      * @return
      */
     public long insert(T entity);
+
+    long update(T entity, T where);
+
+    int delete(T where);
+
+    List<T> query(T where);
+
+    List<T> query(T where, String orderBy, Integer startIndex, Integer limit);
 
 }

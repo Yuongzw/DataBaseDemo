@@ -1,4 +1,4 @@
-package com.yuong.database.db;
+package com.yuong.database.db.base;
 
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -37,7 +37,7 @@ public class BaseDao<T> implements IBaseDao<T> {
     //定义一个缓存控件(key 字段名   value 成员变量)
     private Map<String, Field> entityFields = new HashMap<>();
 
-    protected boolean init(SQLiteDatabase sqLiteDatabase, Class<T> entityClass) {
+    public boolean init(SQLiteDatabase sqLiteDatabase, Class<T> entityClass) {
         this.sqLiteDatabase = sqLiteDatabase;
         this.entityClass = entityClass;
         if (this.entityClass == null) {
@@ -166,6 +166,94 @@ public class BaseDao<T> implements IBaseDao<T> {
         return sqLiteDatabase.insert(tableName, null, values);
     }
 
+    @Override
+    public long update(T entity, T where) {
+        Map<String, String> map = getValues(entity);
+        Map<String, String> whereMap = getValues(where);
+        ContentValues values = getContentValues(map);
+        Condition condition = new Condition(whereMap);
+        int update = sqLiteDatabase.update(tableName, values, condition.whereCause, condition.whereArgs);
+        return update;
+    }
+
+    @Override
+    public int delete(T where) {
+        Map<String, String> values = getValues(where);
+        Condition condition = new Condition(values);
+        int delete = sqLiteDatabase.delete(tableName, condition.whereCause, condition.whereArgs);
+        return delete;
+    }
+
+    @Override
+    public List<T> query(T where) {
+        return query(where, null, null, null);
+    }
+
+    @Override
+    public List<T> query(T where, String orderBy, Integer startIndex, Integer limit) {
+        //select * from tablename limit 0,10
+        Map<String, String> map = getValues(where);
+        String limitStr = null;
+        if (startIndex != null && limit != null) {
+            limitStr = startIndex + "," + limit;
+        }
+        //select * from tablename where id=? and name=?
+        //String selection, String[] selectionArgs,
+        //参数 selection 代表着上面的where语句, selectionArgs 代表后面的问号值
+        Condition condition = new Condition(map);
+        Cursor query = sqLiteDatabase.query(tableName, null, condition.whereCause, condition.whereArgs, null, null, null);
+        //定义一个解析游标的方法
+        List<T> result = getResult(query, where);
+        return result;
+    }
+
+    private List<T> getResult(Cursor cursor, T obj) {
+        List<T> list = new ArrayList<>();
+        Object item = null;
+        while (cursor.moveToNext()) {
+            try {
+                //相当于 User user = new User();
+                item = obj.getClass().newInstance();
+                //设置属性
+                Iterator<Map.Entry<String, Field>> iterator = entityFields.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<String, Field> next = iterator.next();
+                    //获取列名
+                    String columnName = next.getKey();
+                    //以列名拿到列名在游标中的位置
+                    //cursor.getString(columnIndex);
+                    int columnIndex = cursor.getColumnIndex(columnName);
+                    //获取成员变量的类型
+                    Field field = next.getValue();
+                    Class<?> type = field.getType();
+                    if (columnIndex != -1) {
+                        if (type == String.class) {
+                            field.set(item, cursor.getString(columnIndex));
+                        } else if (type == Integer.class) {
+                            field.set(item, cursor.getInt(columnIndex));
+                        } else if (type == Long.class) {
+                            field.set(item, cursor.getLong(columnIndex));
+                        } else if (type == Double.class) {
+                            field.set(item, cursor.getDouble(columnIndex));
+                        } else if (type == Float.class) {
+                            field.set(item, cursor.getFloat(columnIndex));
+                        } else if (type == byte[].class) {
+                            field.set(item, cursor.getBlob(columnIndex));
+                        } else {
+                            //不支持的类型
+                            continue;
+                        }
+                    }
+                }
+                list.add((T) item);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        cursor.close();
+        return list;
+    }
+
     private ContentValues getContentValues(Map<String, String> map) {
         //map为空
         if (map.size() == 0) {
@@ -220,5 +308,29 @@ public class BaseDao<T> implements IBaseDao<T> {
             }
         }
         return map;
+    }
+
+    private class Condition {
+        private String whereCause;
+        private String[] whereArgs;
+
+        public Condition(Map<String, String> whereMap) {
+            List<String> list = new ArrayList();
+            StringBuilder sb = new StringBuilder();
+            sb.append("1=1");
+            //获取所有的字段名
+            Set<String> keySet = whereMap.keySet();
+            Iterator<String> iterator = keySet.iterator();
+            while (iterator.hasNext()) {
+                String key = iterator.next();
+                String fieldName = whereMap.get(key);
+                if (fieldName != null) {
+                    sb.append(" and ").append(key).append(" =?");
+                    list.add(fieldName);
+                }
+            }
+            whereCause = sb.toString();
+            whereArgs = (String[]) list.toArray(new String[list.size()]);
+        }
     }
 }

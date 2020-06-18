@@ -1,4 +1,4 @@
-package com.yuong.database.entity;
+package com.yuong.database.db.entity;
 
 import com.yuong.database.annotation.DBField;
 import com.yuong.database.annotation.DBTable;
@@ -18,6 +18,7 @@ public class User {
     private Integer id;
     private String name;
     private String password;
+    private int status;
 
     public User() { }
 
@@ -25,6 +26,14 @@ public class User {
         this.id = id;
         this.name = name;
         this.password = password;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
     }
 
     public int getId() {
